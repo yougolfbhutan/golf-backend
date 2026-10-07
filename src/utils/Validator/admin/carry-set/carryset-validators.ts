@@ -2,8 +2,8 @@ import * as yup from "yup";
 
 // Define the validation schema
 const uploadCarrySetSchema = yup.object().shape({
-  carrysettname: yup.string().required("carrysettname is required"),
-  availibility: yup.boolean().required("availibility is required"),
+  // carrysetname: yup.string().required("carrysettname is required"),
+  // availibility: yup.boolean().required("availibility is required"),
 
   urls: yup
     .array()

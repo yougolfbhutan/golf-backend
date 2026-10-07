@@ -5,14 +5,15 @@ import adminRouter from "./router/protected-router/admin-router";
 import userRouter from "./router/common-router/user-router";
 
 const configureExpressApp = async (app: any) => {
-  app.use(cors({ credentials: true }));
+  app.use(cors({ origin: 'http://localhost:3000',credentials: true }));
   app.use(express.json());
   app.use(cookieParser());
   app.use(express.urlencoded({ extended: true }));
   //api
-  app.use("/v1", userRouter);
+  app.use("/", userRouter);
 
   //adminapi
-  app.use("/v1/admin", adminRouter);
+  app.use("/admin", adminRouter);
 };
 export default configureExpressApp;
+ 

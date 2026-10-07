@@ -8,7 +8,9 @@ interface SignUpAttributes {
 }
 
 interface DatabaseRegisterSttributes extends SignUpAttributes{
-  roleId:number
+  // roleId:number,
+    login_type?: string; // 👈 add this line (optional if only needed for Google)
+
 }
 
 export {SignUpAttributes,DatabaseRegisterSttributes }

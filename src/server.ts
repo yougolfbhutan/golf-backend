@@ -9,12 +9,12 @@ const StartServer = async () => {
   configureExpressApp(app);
 
   app
-    .listen(PORT, () => {
-      console.log(`🚀 Server is running at http://localhost:${PORT}`);
+    .listen(4000, () => {
+      console.log(`🚀 Server is running at http://localhost:${4000}`);
     })
     .on("error", (err: any) => {
       if (err.code === "EADDRINUSE") {
-        console.error(`❌ Port ${PORT} is already in use.`);
+        console.error(`❌ Port ${4000} is already in use.`);
       } else {
         console.error("❌ Server error:", err);
       }

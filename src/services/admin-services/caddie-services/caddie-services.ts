@@ -12,13 +12,13 @@ class CaddieService {
     this.repository = new CaddieRepository();
   }
   async createCaddie(userInputs: CaddieAttributes) {
-    const { caddiename, availibility, urls } = userInputs;
-    console.log("Inputs", userInputs);
+    const { caddiename, cidNo, phone_number } = userInputs;
+    // console.log("Inputs", userInputs);
     try {
       const caddie = await this.repository.createCaddie({
         caddiename,
-        availibility,
-        urls,
+        cidNo,
+        phone_number,
       });
       return FormateData({
         status: 200,
@@ -30,6 +30,7 @@ class CaddieService {
     }
   }
   async deleteCaddieService(id: number) {
+    console.log("deleteCaddieService", id);
     try {
       const existingCustomer = await this.repository.deleteCaddie(id);
       return FormateData({ existingCustomer });
@@ -37,5 +38,34 @@ class CaddieService {
       throw errorHandler(error);
     }
   }
+  async updateCaddieService(id: number, updateData: Partial<CaddieAttributes>) {
+    console.log("updateCaddieService", id, updateData);
+    try {
+      const existingCustomer = await this.repository.updateCaddie(
+        id,
+        updateData,
+      );
+      return FormateData({ existingCustomer });
+    } catch (error: unknown) {
+      throw errorHandler(error);
+    }
+  }
+ async getCaddieService({ page, limit }: { page: number; limit: number }) {
+  try {
+    const { caddies, total } = await this.repository.getCaddies({ page, limit });
+    return FormateData({
+      caddies,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error: unknown) {
+    throw errorHandler(error);
+  }
 }
+}
+
 export default CaddieService;

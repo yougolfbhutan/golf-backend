@@ -11,28 +11,56 @@ class AddCarrySet {
   }
   async addCarrySetService(userUploadDetails: CarrySetAttributes) {
     await uploadCarrySetSchema.validate(userUploadDetails);
-    const { carrysettname, availibility, urls } = userUploadDetails;
+    const { golfsetname, tier, handedness, audience, price, description, urls } = userUploadDetails;
     try {
       const existingCustomer = await this.repository.createCarrySet({
-        carrysettname,
-        availibility,
-        urls,
+        golfsetname,
+        tier,
+        handedness,
+        audience,
+        price,
+        description,
+        urls
       });
       return FormateData({ existingCustomer });
     } catch (error) {
-      throw errorHandler(error)
+      throw errorHandler(error);
     }
   }
-
   async deleteCarrySetService(id: number) {
     try {
-      const existingCustomer = await this.repository.deleteCarrySet(
-        id,
-      );
+      const existingCustomer = await this.repository.deleteCarrySet(id);
       return FormateData({ existingCustomer });
-    } catch (error:unknown) {
-      throw errorHandler(error)
+    } catch (error: unknown) {
+      throw errorHandler(error);
     }
   }
+  async updateCarrySetService(id: number, updateData: CarrySetAttributes) {
+    try {
+      const existingCustomer = await this.repository.updateCarrySet(
+        id,
+        updateData,
+      );
+      return FormateData({ existingCustomer });
+    } catch (error: unknown) {
+      throw errorHandler(error);
+    }
+  }
+async getCarrySetService({ page, limit }: { page: number; limit: number }) {
+  try {
+    const { carrySets, total } = await this.repository.getCarrySet({ page, limit });
+    return FormateData({
+      carrySets,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error: unknown) {
+    throw errorHandler(error);
+  }
+}
 }
 export default AddCarrySet;

@@ -1,8 +1,9 @@
 export interface CaddieAttributes{
   
   caddiename: string          
-  availibility: boolean         
+  cidNo: string         
   urls?:string[]
+          phone_number: string
 }
 
 // export interface GolfCourseResponseAttributes{

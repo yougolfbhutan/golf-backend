@@ -1,8 +1,6 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 generator client {
   provider = "prisma-client-js"
   output   = "../generated/prisma"
@@ -12,111 +10,420 @@ datasource db {
   provider = "mysql"
   url      = env("DATABASE_URL")
 }
-//users
+
+// ─────────────────────────────────────────────
+// AUTH & ACCESS
+// ─────────────────────────────────────────────
+
 model Customer {
-  id            Int      @id @default(autoincrement())
-  customer_name String   @db.VarChar(255)
-  email         String   @db.VarChar(100) @unique
-  password      String   @db.Char(60)
-  phone_number  String   @db.VarChar(50)
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
-  salt       String
- roleId        Int      @default(1)     // 👈 default to roleId = 0 (normal user)
-  role          Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
-  booking_golf_course    Booking_Golf_Course[] 
+  id            Int                  @id @default(autoincrement())
+  customer_name String               @db.VarChar(255)
+  email         String               @unique @db.VarChar(100)
+  password      String?              @db.Char(60)
+  phone_number  String?              @db.VarChar(50)
+  salt          String?
+  createdAt     DateTime             @default(now()) @map("created_at")
+  updatedAt     DateTime             @updatedAt @map("updated_at")
+  roles         CustomerRole[]
+  permissions   CustomerPermission[]
+  oauthAccount  OauthAccount?
+  refreshTokens RefreshToken[]
+
+  bookings Booking[]
+
+  carts  Cart[]
+  orders Order[]
+}
+
+model RefreshToken {
+  id         Int       @id @default(autoincrement())
+  tokenHash  String    @unique @map("token_hash") @db.VarChar(64)
+  customerId Int       @map("customer_id")
+  customer   Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  expiresAt  DateTime  @map("expires_at")
+  revokedAt  DateTime? @map("revoked_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  @@index([customerId])
+  @@map("refresh_tokens")
+}
+
+enum ProviderEnum {
+  google
+  local
+}
+
+model OauthAccount {
+  id                Int          @id @default(autoincrement())
+  provider          ProviderEnum
+  providerAccountId String       @unique @db.VarChar(255)
+  createdAt         DateTime     @default(now()) @map("created_at")
+  customerId        Int          @unique
+  customer          Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
 }
 
 model Role {
-  id         Int              @id @default(autoincrement())
-  role_name  String           @db.VarChar(255)
-  customers     Customer[]  
-  permissions RolePermission[] // Many-to-many with Permission
+  id          Int              @id @default(autoincrement())
+  role_name   String           @unique @db.VarChar(255)
+  customers   CustomerRole[]
+  permissions RolePermission[]
 }
 
 model Permission {
-  id               Int              @id @default(autoincrement())
-  permission_name  String           @db.VarChar(255)
-  roles            RolePermission[] // Many-to-many with Role
+  id              Int                  @id @default(autoincrement())
+  permission_name String               @unique @db.VarChar(255)
+  roles           RolePermission[]
+  customers       CustomerPermission[]
+}
+
+model CustomerRole {
+  customerId Int
+  roleId     Int
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  role       Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([customerId, roleId])
 }
 
 model RolePermission {
-  id            Int         @id @default(autoincrement())
-  roleId        Int
-  permissionId  Int
-  role          Role        @relation(fields: [roleId], references: [id],onDelete: Cascade)
-  permission    Permission  @relation(fields: [permissionId], references: [id],onDelete: Cascade)
+  roleId       Int
+  permissionId Int
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
 }
 
+model CustomerPermission {
+  customerId   Int
+  permissionId Int
+  customer     Customer   @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
 
-model Golf_Course{
-  id   Int   @id @default(autoincrement())
-  golf_course_name String           @db.VarChar(255)
-  golf_course_location_name String           @db.VarChar(255)
-  golf_course_location_description String           @db.VarChar(255)
-  golf_course  Booking_Golf_Course[]
+  @@id([customerId, permissionId])
 }
 
+// ─────────────────────────────────────────────
+// SHARED ENUMS
+// ─────────────────────────────────────────────
+
+enum Tier {
+  standard
+  premium
+}
+
+enum Handedness {
+  left
+  right
+}
+
+enum Audience {
+  men
+  women
+  junior
+}
+
+enum PlayerType {
+  local         // Bhutanese — pays in Nu. (BTN)
+  international // pays in USD
+}
+
+enum SkillLevel {
+  beginner
+  intermediate
+  advanced
+}
+
+// ─────────────────────────────────────────────
+// GOLF SETS
+// ─────────────────────────────────────────────
+
+model GolfSet {
+  id           Int              @id @default(autoincrement())
+  name         String           @db.VarChar(255)
+  tier         Tier             @default(standard)
+  handedness   Handedness       @default(right)
+  audience     Audience
+  price        Decimal          @default(0) @db.Decimal(10, 2) // rental price (used for upgrade charge)
+  description  String
+  availability Boolean          @default(true)
+  stockQty     Int              @default(1) // NEW: identical physical sets you own
+  urls         GolfSetUrl[]
+  bookingSets  BookingGolfSet[]
+
+  @@index([tier, handedness, audience])
+}
+
+model GolfSetUrl {
+  url       String  @db.VarChar(500)
+  golfSetId Int
+  golfSet   GolfSet @relation(fields: [golfSetId], references: [id], onDelete: Cascade)
+
+  @@id([url, golfSetId])
+  @@index([golfSetId])
+}
+
+// ─────────────────────────────────────────────
+// BOOKINGS
+// ─────────────────────────────────────────────
 
 enum BookingStatus {
- cancelled
- booked
-}
-model Booking_Golf_Course{
-  id   Int   @id @default(autoincrement())
-  
-  booking_status BookingStatus
-  date DateTime
-  
-  
-  customerId     Int
-  golfCourseId   Int
-   carrySetId     Int?   
-
-
-   customer       Customer          @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  golfCourse     Golf_Course       @relation(fields: [golfCourseId], references: [id], onDelete: Cascade)
-    carrySet       CarrySet?      @relation(fields: [carrySetId], references: [id], onDelete: Cascade) // 👈 Add this
-
-}
-enum Available{
-  available
-  not_availabel
+  pending   // created, awaiting payment
+  booked    // paid & confirmed
+  cancelled
+  completed // round played
 }
 
-model Caddie{
-  id   Int   @id @default(autoincrement())
-  caddiename String
-  availibility Boolean
-  urls      CaddieUrl[]
+model Booking {
+  id         Int           @id @default(autoincrement())
+  reference  String        @unique @db.VarChar(20)  // "YGB-7K3P9Q" — shown to the guest
+  bookingKey String?       @unique @db.VarChar(191) // idempotency key — stops double-tap duplicates
+  status     BookingStatus @default(pending)
 
+  playerType PlayerType @map("player_type")
+  skillLevel String
+  playDate   DateTime   @map("play_date") @db.Date
+  teeTime    DateTime?  @map("tee_time") // exact time assigned later by staff
+  players    Int        @default(1)       // number of golfers
+
+  packageTier Tier? @map("package_tier") // NEW: standard | premium | null = no package
+
+  golfSets BookingGolfSet[]
+  items    BookingItem[]
+
+  partyName      String  @db.VarChar(255)
+  partyEmail     String  @db.VarChar(100)
+  partyPhone     String? @db.VarChar(50)
+  nationality    String? @db.VarChar(100)
+  specialRequest String? @db.VarChar(500)
+
+  currency   String  @db.Char(3)
+  courseFee  Decimal @default(0) @map("course_fee") @db.Decimal(10, 2)
+  packageFee Decimal @default(0) @map("package_fee") @db.Decimal(10, 2) // NEW: (pricePerGolfer × players) − credits, min 0
+  setsFee    Decimal @default(0) @map("sets_fee") @db.Decimal(10, 2)    // CHANGED: premium-upgrade charges on sets
+  itemsFee   Decimal @default(0) @map("items_fee") @db.Decimal(10, 2)   // CHANGED: item upgrades + add-ons
+  totalPrice Decimal @map("total_price") @db.Decimal(10, 2)             // courseFee + packageFee + setsFee + itemsFee
+
+  customerId Int?
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  payments   Payment[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([customerId])
+  @@index([playDate])
+  @@index([partyEmail])
 }
 
-model CaddieUrl{
-  url      String   
-  caddieId Int
-caddie   Caddie @relation(fields: [caddieId], references: [id], onDelete: Cascade)
+// Golf sets on a booking (0 up to `players` when a package is used)
+model BookingGolfSet {
+  id        Int     @id @default(autoincrement())
+  bookingId Int
+  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  golfSetId Int
+  golfSet   GolfSet @relation(fields: [golfSetId], references: [id], onDelete: Restrict)
+  quantity  Int     @default(1)
+  unitPrice Decimal @db.Decimal(10, 2) // CHANGED: charge actually made (0 if covered by package)
 
-@@id([url, caddieId])
-@@index([caddieId])
+  @@unique([bookingId, golfSetId])
+  @@index([golfSetId])
 }
 
+// Package items (gloves, balls) AND add-ons (caps, pants, T-shirts)
+model BookingItem {
+  id            Int         @id @default(autoincrement())
+  bookingId     Int
+  booking       Booking     @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  itemVariantId Int
+  itemVariant   ItemVariant @relation(fields: [itemVariantId], references: [id], onDelete: Restrict)
+  quantity      Int         @default(1)
+  unitPrice     Decimal     @db.Decimal(10, 2) // CHANGED: charge actually made (0 if covered by package)
+  isAddOn       Boolean     @default(false)    // NEW: false = part of package, true = paid extra
 
-model CarrySet{
-  id   Int   @id @default(autoincrement())
-  carrysettname String
-  availibility Boolean
-  urls      CarrySetUrl[]
-  bookings       Booking_Golf_Course[] // 👈 Add this line
-
-
+  @@unique([bookingId, itemVariantId, isAddOn]) // CHANGED
+  @@index([itemVariantId])
 }
 
-model CarrySetUrl{
-  url      String   
- carrysetId Int
-carryset   CarrySet @relation(fields: [carrysetId], references: [id], onDelete: Cascade)
+// ─────────────────────────────────────────────
+// ITEMS (balls, gloves, caps, pants, T-shirts)
+// ─────────────────────────────────────────────
 
-@@id([url,carrysetId])
-@@index([carrysetId])
+model ItemCategory {
+  id      Int     @id @default(autoincrement())
+  name    String  @db.VarChar(255) // Balls, Gloves, Caps, Pants, T-shirts
+  isAddOn Boolean @default(false)  // NEW: true for Caps, Pants, T-shirts
+  items   Item[]
+}
+
+model Item {
+  id          Int           @id @default(autoincrement())
+  name        String        @db.VarChar(255)
+  description String?       @db.VarChar(1000)
+  categoryId  Int
+  category    ItemCategory  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  variants    ItemVariant[]
+
+  @@index([categoryId])
+}
+
+// Which fields apply depends on the product:
+//   Balls              -> tier, packQuantity (audience null)
+//   Gloves             -> audience, color, size, hand (tier optional)
+//   Caps/Pants/T-shirt -> audience, color, size
+model ItemVariant {
+  id         Int    @id @default(autoincrement())
+  itemId     Int
+  item       Item   @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  sku        String @unique @db.VarChar(50)
+  variantKey String @unique @map("variant_key") @db.VarChar(191)
+
+  tier     Tier?       // balls, gloves; null for apparel
+  audience Audience?   // men / women / junior; null for balls
+  color    String?     @db.VarChar(50)
+  size     String?     @db.VarChar(20) // "S", "M", "Large", "32"
+  hand     Handedness? // gloves only; null for everything else
+
+  packQuantity Int              @default(1)
+  price        Decimal          @db.Decimal(10, 2)
+  stockQty     Int              @default(0)
+  availability Boolean          @default(true)
+  attributes   Json?
+  urls         ItemVariantUrl[]
+  cartItems    CartItem[]
+  bookingItems BookingItem[]
+
+  @@index([itemId])
+  @@index([color])
+  @@index([tier])
+  @@index([audience])
+}
+
+model ItemVariantUrl {
+  url           String      @db.VarChar(500)
+  itemVariantId Int
+  itemVariant   ItemVariant @relation(fields: [itemVariantId], references: [id], onDelete: Cascade)
+  sortOrder     Int         @default(0)
+
+  @@id([url, itemVariantId])
+  @@index([itemVariantId])
+}
+
+// ─────────────────────────────────────────────
+// SHOP: CART & ORDERS
+// ─────────────────────────────────────────────
+
+model Cart {
+  id         Int        @id @default(autoincrement())
+  customerId Int?
+  customer   Customer?  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  createdAt  DateTime   @default(now()) @map("created_at")
+  items      CartItem[]
+  order      Order?
+
+  @@index([customerId])
+}
+
+model CartItem {
+  id            Int         @id @default(autoincrement())
+  unitPrice     Decimal     @db.Decimal(10, 2)
+  quantity      Int         @default(1)
+  cartId        Int
+  cart          Cart        @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  itemVariantId Int
+  itemVariant   ItemVariant @relation(fields: [itemVariantId], references: [id], onDelete: Cascade)
+
+  @@unique([cartId, itemVariantId])
+  @@index([itemVariantId])
+}
+
+enum OrderStatus {
+  pending
+  paid
+  cancelled
+  refunded
+}
+
+model Order {
+  id         Int         @id @default(autoincrement())
+  status     OrderStatus @default(pending)
+  totalPrice Decimal     @db.Decimal(10, 2)
+  createdAt  DateTime    @default(now()) @map("created_at")
+  updatedAt  DateTime    @updatedAt @map("updated_at")
+  customerId Int?
+  customer   Customer?   @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  cartId     Int?        @unique
+  cart       Cart?       @relation(fields: [cartId], references: [id], onDelete: SetNull)
+  payment    Payment?
+
+  @@index([customerId])
+}
+
+// ─────────────────────────────────────────────
+// PAYMENTS & ACCOUNTING
+// ─────────────────────────────────────────────
+
+enum PaymentPurpose {
+  booking
+  order
+}
+
+enum PaymentMethod {
+  dk_bank
+  card
+}
+
+enum PaymentStatus {
+  pending
+  success
+  failed
+  refunded
+}
+
+model Payment {
+  id           Int            @id @default(autoincrement())
+  purpose      PaymentPurpose
+  amount       Decimal        @db.Decimal(10, 2)
+  currency     String         @db.Char(3)
+  method       PaymentMethod
+  status       PaymentStatus  @default(pending)
+  gatewayTxnId String?        @unique @db.VarChar(100) // ID from DK Bank / card gateway
+  cardLast4    String?        @db.Char(4)              // NEVER store full card number or CVV
+  payment_date DateTime?                                // set when the gateway confirms
+  journal_no   String?        @db.VarChar(50)          // filled by accounting
+  reference_no String?        @db.VarChar(50)
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
+
+  bookingId Int?
+  booking   Booking? @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  orderId   Int?     @unique
+  order     Order?   @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  accountTransaction AccountTransaction?
+
+  @@index([bookingId])
+  @@index([status])
+}
+
+model AccountTransaction {
+  id             Int                         @id @default(autoincrement())
+  voucher_no     String                      @db.VarChar(50)
+  voucher_amount Decimal                     @db.Decimal(10, 2)
+  voucher_date   DateTime                    @default(now())
+  paymentId      Int                         @unique
+  payment        Payment                     @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  details        AccountTransactionDetails[]
+}
+
+model AccountTransactionDetails {
+  id                   Int                @id @default(autoincrement())
+  reference_no         String             @db.VarChar(50)
+  dr                   Decimal            @db.Decimal(10, 2)
+  cr                   Decimal            @db.Decimal(10, 2)
+  accountType          String             @db.VarChar(50)
+  accountTransactionId Int
+  accountTransaction   AccountTransaction @relation(fields: [accountTransactionId], references: [id], onDelete: Cascade)
+
+  @@index([accountTransactionId])
 }

@@ -8,27 +8,29 @@ export class CaddieController {
   constructor() {
     this.uploadCaddie = this.uploadCaddie.bind(this);
     this.deleteCaddie = this.deleteCaddie.bind(this);
+    this.getCaddie = this.getCaddie.bind(this);
+    this.updateCaddie = this.updateCaddie.bind(this);
   }
   async uploadCaddie(
     req: Request,
     res: Response,
-    next: NextFunction
+    next: NextFunction,
   ): Promise<any> {
     try {
-      const { caddiename, availibility } = req.body;
-      const cloudinaryUrls = req.body.cloudinaryUrls;
+      const { caddiename, cidNo, phone_number } = req.body;
+      console.log("req.body caddie", req.body);
 
       const { data } = await this.service.createCaddie({
         caddiename,
-        availibility: true,
-        urls: cloudinaryUrls,
+        cidNo,
+        phone_number,
       });
-      return ApiResponse.success(res, "Successfully logged in", 200, data);
+      return ApiResponse.success(res, "Caddie created successfully", 200, data);
     } catch (error: any) {
       return UploadImportantFiles.ApiResponse.error(
         res,
         error instanceof Error ? error.message : "An unexpected error occurred",
-        500
+        500,
       );
     }
   }
@@ -36,7 +38,7 @@ export class CaddieController {
   async deleteCaddie(
     req: Request,
     res: Response,
-    next: NextFunction
+    next: NextFunction,
   ): Promise<any> {
     try {
       const carrySetId = Number(req.params.id); // ✅ retrieve the ID from the URL
@@ -44,11 +46,56 @@ export class CaddieController {
       const { data } = await this.service.deleteCaddieService(carrySetId);
       return ApiResponse.success(res, "Deleted Successuflly", 200, data);
     } catch (error: any) {
-      console.log("hyhyhyhyhyh", error);
       return UploadImportantFiles.ApiResponse.error(
         res,
         error instanceof Error ? error.message : "An unexpected error occurred",
-        500
+        500,
+      );
+    }
+  }
+  async updateCaddie(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<any> {
+    try {
+      const carrySetId = Number(req.params.id); // ✅ retrieve the ID from the URL
+
+      const { data } = await this.service.updateCaddieService(
+        carrySetId,
+        req.body,
+      );
+      return ApiResponse.success(res, "Caddie updated successfully", 200, data);
+    } catch (error: any) {
+      return UploadImportantFiles.ApiResponse.error(
+        res,
+        error instanceof Error ? error.message : "An unexpected error occurred",
+        500,
+      );
+    }
+  }
+  async getCaddie(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<any> {
+    try {
+      const page = Math.max(Number(req.query.page) || 1, 1);
+      const limit = Math.min(Math.max(Number(req.query.limit) || 10, 1), 100); // cap it so nobody requests 1M rows
+
+      const { data } = await this.service.getCaddieService({ page, limit });
+
+      return ApiResponse.success(
+        res,
+        "Caddie retrieved successfully",
+        200,
+        { caddies: data.caddies, meta: data.meta }, // single 4th argument
+      );
+    } catch (error: any) {
+      return UploadImportantFiles.ApiResponse.error(
+        res,
+        error instanceof Error ? error.message : "An unexpected error occurred",
+        500,
       );
     }
   }

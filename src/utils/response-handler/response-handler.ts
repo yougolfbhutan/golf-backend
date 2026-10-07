@@ -16,7 +16,7 @@ export class ApiResponse {
   static error(res: Response, message: string, statusCode: number): Response {
     return res.status(statusCode).json({
       status: statusCode,
-      error: message,
+      message: message,
     });
   }
 }

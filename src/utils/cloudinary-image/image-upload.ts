@@ -9,7 +9,6 @@ import sharp from "sharp";
 import { Request, Response, NextFunction } from "express";
 import schema from "../Validator/admin/file-upload";
 
-
 dotenv.config();
 
 cloudinary.config({
@@ -31,10 +30,18 @@ export const uploadToCloudinary = async (
   next: NextFunction
 ): Promise<any> => {
   try {
-    const files: CloudinaryFile[] = req.files as CloudinaryFile[];
+    const files: CloudinaryFile[] = (req.files as CloudinaryFile[]) || [];
+
+    // No new files sent (e.g. user is only editing other fields) — skip upload
+    if (files.length === 0) {
+      return next();
+    }
+
+    // Only validate/upload when files are actually present
     await schema.validate({ files: files.map((file) => file.originalname) });
 
     const cloudinaryUrls: string[] = [];
+
     for (const file of files) {
       const resizedBuffer: Buffer = await sharp(file.buffer)
         .resize({ width: 800, height: 600 })
@@ -59,7 +66,6 @@ export const uploadToCloudinary = async (
           cloudinaryUrls.push(result.secure_url);
 
           if (cloudinaryUrls.length === files.length) {
-            //All files processed now get your images here
             req.body.cloudinaryUrls = cloudinaryUrls;
             next();
           }
@@ -67,11 +73,11 @@ export const uploadToCloudinary = async (
       );
       uploadStream.end(resizedBuffer);
     }
-  } catch (error :unknown) {
-      return res.status(400).json({
+  } catch (error: unknown) {
+    console.error("uploadToCloudinary error:", error);
+    return res.status(400).json({
       status: "fail",
-      message:  "Atleast one image file should be uploaded",
+      message: "Image upload failed",
     });
-  
   }
 };

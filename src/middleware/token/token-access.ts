@@ -3,7 +3,7 @@ import {
   TokenResponse,
   UserCreationResponse,
 } from "../../interface/token/token-interface";
-const secretKey = "yourSecretKey";
+
 import jwt, { JwtPayload } from "jsonwebtoken";
 import {
   ForbiddenError,
@@ -19,51 +19,46 @@ interface TokenPayload {
 }
 const INACTIVITY_TIMEOUT = 1000000 * 1000;
 export const ACCESS_TOKEN = async (
-  data: TokenPayload
+  data: TokenPayload,
 ): Promise<TokenResponse> => {
   const payload = { ...data };
 
-  const accessToken = await jwt.sign(payload, secretKey, {
-    expiresIn: "1h",
+  const accessToken = jwt.sign(payload, process.env.JWT_TOKEN_SECRET!, {
+    expiresIn: "24h",
   });
-  const refreshToken = jwt.sign(payload, secretKey, { expiresIn: "1h" });
+  const refreshToken = jwt.sign(payload, process.env.JWT_TOKEN_SECRET!, {
+    expiresIn: "24h",
+  });
   return { accessToken, refreshToken };
 };
+
 export const VERIFY_TOKEN = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<any> => {
-  let TokenData;
   try {
-    let token = req.headers.authorization;
+    const token = req.cookies?.accessToken; // this IS the token, no "Bearer" prefix to strip
+
     if (!token) {
       throw new ForbiddenError("Access denied. No token provided");
     }
-    if (token && token.startsWith("Bearer")) {
-      TokenData = token.split(" ")[1];
-    }
+
     try {
-      const decoded = jwt.verify(TokenData!, secretKey); // ✅ use TokenData here
-      
+      const decoded = jwt.verify(token, process.env.JWT_TOKEN_SECRET!);
       (req as any).user = decoded;
-   
-      return next(); 
+      return next();
     } catch (error) {
       if (error instanceof jwt.TokenExpiredError) {
-        const refreshToken = token;
-        if (!refreshToken) {
-          throw new NotFoundError("Refresh token missing");
-        }
+        return ApiResponse.error(res, "Access token expired", 401);
       }
-
       throw new UnauthorizedError(`${error}`);
     }
   } catch (error) {
     return ApiResponse.error(
       res,
       error instanceof Error ? error.message : "An unexpected error occurred",
-      401
+      401,
     );
   }
 };

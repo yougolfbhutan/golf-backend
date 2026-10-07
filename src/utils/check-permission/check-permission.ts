@@ -10,24 +10,28 @@ export const checkPermission = (requirePermission: string) => {
   ): Promise<any> => {
     try {
       const user = (req as any).user;
-      console.log("user role and Id",user)
+
+      if (!user?.id) {
+        return ApiResponse.error(res, "Not authenticated", 401);
+      }
+
       const rolePermissionRepo = new RolePermissionRepository();
-      const permission = await rolePermissionRepo.findRoleAndPermission(
-        user.id
-      );
-     
-      if (permission?.role.permissions && Array.isArray(permission.role.permissions)) {
-        const userPermissions = permission.role.permissions.map(
-          (perm) => perm.permission.permission_name
-        );
-        console.log("userPermission", userPermissions);
-        if (userPermissions.includes(requirePermission)) {
-          return next();
-        }
+      const customerData = await rolePermissionRepo.findRoleAndPermission(user.id);
+
+      const userPermissions =
+        customerData?.roles.flatMap(
+          (cr) => cr.role?.permissions?.map((rp) => rp.permission.permission_name) ?? []
+        ) ?? [];
+
+      console.log("userPermissions", userPermissions);
+
+      if (userPermissions.includes(requirePermission)) {
+        return next();
       }
 
       return ApiResponse.error(res, "Insufficient permissions", 403);
     } catch (error: any) {
+      console.error("checkPermission error:", error);
       return ApiResponse.error(
         res,
         error instanceof Error ? error.message : "An unexpected error occurred",

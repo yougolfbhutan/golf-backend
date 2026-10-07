@@ -12,12 +12,13 @@ class CaddieRepository {
       const caddie = await prisma.caddie.create({
         data: {
           caddiename: input.caddiename,
-          availibility: input.availibility,
-          urls: input.urls
-            ? {
-                create: input.urls.map((url: string) => ({ url })),
-              }
-            : undefined,
+          cidNo: input.cidNo,
+          phone_number: input.phone_number,
+          //   urls: input.urls
+          //     ? {
+          //         create: input.urls.map((url: string) => ({ url })),
+          //       }
+          //     : undefined,
         },
       });
       return caddie;
@@ -26,7 +27,7 @@ class CaddieRepository {
       throw new APIError(
         String(err),
         STATUS_CODES.INTERNAL_ERROR,
-        "Unable to Create Customer"
+        "Unable to Create Customer",
       );
     }
   }
@@ -44,7 +45,53 @@ class CaddieRepository {
         "API_ERROR",
         STATUS_CODES.INTERNAL_ERROR,
         "No Carry Set to delete",
-        true
+        true,
+      );
+    }
+  }
+  async updateCaddie(
+    id: number,
+    updateData: Partial<CaddieAttributes>,
+  ): Promise<any | null> {
+    try {
+      const CarrySet = await prisma.caddie.update({
+        where: {
+          id: id,
+        },
+        data: updateData,
+      });
+
+      return FormateData({ CarrySet });
+    } catch (err) {
+      throw new APIError(
+        "API_ERROR",
+        STATUS_CODES.INTERNAL_ERROR,
+        "No Carry Set to delete",
+        true,
+      );
+    }
+  }
+  async getCaddies({ page, limit }: { page: number; limit: number }) {
+    try {
+      const skip = (page - 1) * limit;
+
+      const [caddies, total] = await Promise.all([
+        prisma.caddie.findMany({
+          skip,
+          take: limit,
+          // orderBy: { createdAt: "desc" }, // pick a stable sort, otherwise pagination order isn't guaranteed
+        }),
+        prisma.caddie.count(),
+      ]);
+
+        return { caddies, total };
+
+    } catch (err) {
+      throw new APIError(
+        "API_ERROR",
+        STATUS_CODES.INTERNAL_ERROR,
+        "Unable to retrieve caddies",
+        true,
       );
     }
   }

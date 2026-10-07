@@ -3,7 +3,7 @@ import UploadImportantFiles from "./constants";
 import { ApiResponse } from "../../../utils/response-handler/response-handler";
 
 export class UploadGolfCourse {
-    public service = new UploadImportantFiles.AdminService();
+    // public service = new UploadImportantFiles.AdminService();
 
   constructor() {
     this.uploadGolfCourse = this.uploadGolfCourse.bind(this);
@@ -22,12 +22,12 @@ export class UploadGolfCourse {
       } = req.body;
 
     
-      const {data} = await this.service.ResgisterGolfCourse({
-         golf_course_name,
-        golf_course_location_name,
-        golf_course_location_description,
-      })
-     return  ApiResponse.success(res, "Successfully logged in", 200, data);
+      // const {data} = await this.service.ResgisterGolfCourse({
+      //    golf_course_name,
+      //   golf_course_location_name,
+      //   golf_course_location_description,
+      // })
+     return  ApiResponse.success(res, "Successfully logged in", 200);
     } catch (error: any) {
       return UploadImportantFiles.ApiResponse.error(
         res,

@@ -1,7 +1,7 @@
 interface ExtractCustomerAttributes {
   customer_name: string;
   email: string;
-  phone_number: string;
+  phone_number: string | null;
 }
 
 interface ExtractGolfCourseAttributes {
